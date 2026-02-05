@@ -22,6 +22,7 @@ public class SettingsManager {
     private static final String ENABLE_PULL_DOWN_SEARCH_KEY = "EnablePullDownSearch";
     private static final String USE_24_HOUR_FORMAT_KEY = "Use24HourFormat";
     private static final String WALLPAPER_PATH_KEY = "WallpaperPath";
+    private static final String SHOW_CLOCK_KEY = "ShowClock";
 
     private SharedPreferences sharedPreferences;
 
@@ -143,6 +144,16 @@ public class SettingsManager {
     public void setWallpaperPath(String path) {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString(WALLPAPER_PATH_KEY, path);
+        editor.apply();
+    }
+
+    public boolean isShowClock() {
+        return sharedPreferences.getBoolean(SHOW_CLOCK_KEY, true);
+    }
+
+    public void setShowClock(boolean show) {
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putBoolean(SHOW_CLOCK_KEY, show);
         editor.apply();
     }
 

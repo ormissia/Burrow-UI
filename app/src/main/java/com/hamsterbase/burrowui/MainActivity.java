@@ -19,9 +19,10 @@ import android.os.Looper;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.hamsterbase.burrowui.service.AppInfo;
@@ -40,7 +41,8 @@ public class MainActivity extends Activity {
     private TextView dateTextView;
     private TextView amPmTextView;
     private LinearLayout appLinearLayout;
-    private LinearLayout rootLayout;
+    private FrameLayout rootLayout;
+    private LinearLayout clockLayout;
     private List<AppInfo> selectedApps;
     private SettingsManager settingsManager;
     private AppManagementService appManagementService;
@@ -68,13 +70,14 @@ public class MainActivity extends Activity {
         amPmTextView = findViewById(R.id.amPmTextView);
         appLinearLayout = findViewById(R.id.appLinearLayout);
         rootLayout = findViewById(R.id.rootLayout);
+        clockLayout = findViewById(R.id.clockLayout);
 
         // 或者设置颜色
         rootLayout.setBackgroundColor(Color.TRANSPARENT);
 
-        ScrollView appList = findViewById(R.id.appScrollList);
+        HorizontalScrollView appList = findViewById(R.id.appScrollList);
         appList.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        appList.setVerticalScrollBarEnabled(false);
+        appList.setHorizontalScrollBarEnabled(false);
 
         TextView debugTextView = findViewById(R.id.debugTextView);
         if (BuildConfig.DEBUG) {
@@ -167,7 +170,7 @@ public class MainActivity extends Activity {
         loadApps();
         displaySelectedApps();
         loadWallpaper();
-        handler.post(updateTimeRunnable);
+        updateClockVisibility();
 
         IntentFilter filter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
         registerReceiver(batteryReceiver, filter);
@@ -240,7 +243,7 @@ public class MainActivity extends Activity {
     }
 
     private void addAppToLayout(AppInfo app) {
-        View appView = getLayoutInflater().inflate(R.layout.app_item, null);
+        View appView = getLayoutInflater().inflate(R.layout.dock_app_item, null);
         ImageView iconView = appView.findViewById(R.id.appIcon);
         TextView nameView = appView.findViewById(R.id.appName);
 
@@ -251,7 +254,7 @@ public class MainActivity extends Activity {
     }
 
     private void addSettingsAppToLayout() {
-        View settingsAppView = getLayoutInflater().inflate(R.layout.app_item, null);
+        View settingsAppView = getLayoutInflater().inflate(R.layout.dock_app_item, null);
         ImageView iconView = settingsAppView.findViewById(R.id.appIcon);
         TextView nameView = settingsAppView.findViewById(R.id.appName);
 
@@ -269,6 +272,16 @@ public class MainActivity extends Activity {
     private void openSearchActivity() {
         Intent intent = new Intent(this, SearchActivity.class);
         startActivity(intent);
+    }
+
+    private void updateClockVisibility() {
+        if (settingsManager.isShowClock()) {
+            clockLayout.setVisibility(View.VISIBLE);
+            handler.post(updateTimeRunnable);
+        } else {
+            clockLayout.setVisibility(View.GONE);
+            handler.removeCallbacks(updateTimeRunnable);
+        }
     }
 
     private void loadWallpaper() {

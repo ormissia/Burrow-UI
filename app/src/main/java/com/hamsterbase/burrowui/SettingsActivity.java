@@ -7,6 +7,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 
 import com.hamsterbase.burrowui.components.SettingsItem;
 import com.hamsterbase.burrowui.components.SwitchSettingsItem;
@@ -76,8 +77,25 @@ public class SettingsActivity extends Activity implements NavigationBar.OnBackCl
 
         addLine();
 
-        addSection("Wallpaper", "Set background image from storage", R.drawable.ic_right,
-                v -> pickWallpaper());
+        settingsContainer.addView(new SwitchSettingsItem(
+                this,
+                "Show Clock",
+                "When enabled, clock and date are displayed on home screen.",
+                settingsManager.isShowClock(),
+                isChecked -> {
+                    settingsManager.setShowClock(isChecked);
+                }
+        ));
+
+        addLine();
+
+        addSection("Wallpaper", "Tap to set, long press to clear", R.drawable.ic_right,
+                v -> pickWallpaper(),
+                v -> {
+                    settingsManager.setWallpaperPath(null);
+                    Toast.makeText(this, "Wallpaper cleared", Toast.LENGTH_SHORT).show();
+                    return true;
+                });
 
         addLine();
 
@@ -89,18 +107,25 @@ public class SettingsActivity extends Activity implements NavigationBar.OnBackCl
     }
 
     private void addSection(String title, String description, int iconResId, View.OnClickListener listener) {
+        addSection(title, description, iconResId, listener, null);
+    }
+
+    private void addSection(String title, String description, int iconResId, View.OnClickListener clickListener, View.OnLongClickListener longClickListener) {
         SettingsItem section = new SettingsItem(this);
         section.setTitle(title);
         section.setDescription(description);
         section.setIcon(iconResId);
-        section.setOnClickListener(listener);
+        section.setOnClickListener(clickListener);
+        if (longClickListener != null) {
+            section.setOnLongClickListener(longClickListener);
+        }
         settingsContainer.addView(section);
     }
 
     private void addLine() {
         View dividerView = new View(this);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 1);
+                LinearLayout.LayoutParams.MATCH_PARENT, 2);
         int marginInPixels = (int) (24 * getResources().getDisplayMetrics().density);
         params.setMargins(marginInPixels, 0, marginInPixels, 0);
         dividerView.setLayoutParams(params);
@@ -114,8 +139,7 @@ public class SettingsActivity extends Activity implements NavigationBar.OnBackCl
     }
 
     private void pickWallpaper() {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("image/*");
         startActivityForResult(intent, PICK_WALLPAPER_REQUEST);
     }
@@ -126,8 +150,12 @@ public class SettingsActivity extends Activity implements NavigationBar.OnBackCl
         if (requestCode == PICK_WALLPAPER_REQUEST && resultCode == RESULT_OK && data != null) {
             Uri uri = data.getData();
             if (uri != null) {
-                getContentResolver().takePersistableUriPermission(uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                try {
+                    getContentResolver().takePersistableUriPermission(uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                } catch (SecurityException e) {
+                    // 部分设备不支持持久化权限，忽略
+                }
                 settingsManager.setWallpaperPath(uri.toString());
             }
         }
