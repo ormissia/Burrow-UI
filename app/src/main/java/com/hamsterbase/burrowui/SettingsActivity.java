@@ -6,7 +6,6 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
-import android.view.WindowManager;
 import android.widget.LinearLayout;
 
 import com.hamsterbase.burrowui.components.SettingsItem;
@@ -14,15 +13,14 @@ import com.hamsterbase.burrowui.components.SwitchSettingsItem;
 
 public class SettingsActivity extends Activity implements NavigationBar.OnBackClickListener {
 
+    private static final int PICK_WALLPAPER_REQUEST = 1001;
+
     private SettingsManager settingsManager;
     private LinearLayout settingsContainer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                WindowManager.LayoutParams.FLAG_FULLSCREEN);
-
         setContentView(R.layout.activity_settings);
         settingsContainer = findViewById(R.id.settingsContainer);
         settingsManager = new SettingsManager(this);
@@ -78,6 +76,11 @@ public class SettingsActivity extends Activity implements NavigationBar.OnBackCl
 
         addLine();
 
+        addSection("Wallpaper", "Set background image from storage", R.drawable.ic_right,
+                v -> pickWallpaper());
+
+        addLine();
+
         addSection("App Info", "View application details", R.drawable.ic_right,
                 v -> startActivity(new Intent(SettingsActivity.this, AboutActivity.class)));
 
@@ -108,5 +111,25 @@ public class SettingsActivity extends Activity implements NavigationBar.OnBackCl
     @Override
     public void onBackClick() {
         finish();
+    }
+
+    private void pickWallpaper() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("image/*");
+        startActivityForResult(intent, PICK_WALLPAPER_REQUEST);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == PICK_WALLPAPER_REQUEST && resultCode == RESULT_OK && data != null) {
+            Uri uri = data.getData();
+            if (uri != null) {
+                getContentResolver().takePersistableUriPermission(uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                settingsManager.setWallpaperPath(uri.toString());
+            }
+        }
     }
 }

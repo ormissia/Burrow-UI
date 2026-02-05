@@ -5,15 +5,20 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Color;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.Window;
-import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -27,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.io.InputStream;
 
 public class MainActivity extends Activity {
 
@@ -34,6 +40,7 @@ public class MainActivity extends Activity {
     private TextView dateTextView;
     private TextView amPmTextView;
     private LinearLayout appLinearLayout;
+    private LinearLayout rootLayout;
     private List<AppInfo> selectedApps;
     private SettingsManager settingsManager;
     private AppManagementService appManagementService;
@@ -49,8 +56,10 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        requestWindowFeature(Window.FEATURE_NO_TITLE);
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        // 设置透明状态栏
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
 
         setContentView(R.layout.activity_main);
 
@@ -58,6 +67,10 @@ public class MainActivity extends Activity {
         dateTextView = findViewById(R.id.dateTextView);
         amPmTextView = findViewById(R.id.amPmTextView);
         appLinearLayout = findViewById(R.id.appLinearLayout);
+        rootLayout = findViewById(R.id.rootLayout);
+
+        // 或者设置颜色
+        rootLayout.setBackgroundColor(Color.TRANSPARENT);
 
         ScrollView appList = findViewById(R.id.appScrollList);
         appList.setOverScrollMode(View.OVER_SCROLL_NEVER);
@@ -153,6 +166,7 @@ public class MainActivity extends Activity {
         super.onResume();
         loadApps();
         displaySelectedApps();
+        loadWallpaper();
         handler.post(updateTimeRunnable);
 
         IntentFilter filter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
@@ -255,5 +269,83 @@ public class MainActivity extends Activity {
     private void openSearchActivity() {
         Intent intent = new Intent(this, SearchActivity.class);
         startActivity(intent);
+    }
+
+    private void loadWallpaper() {
+        String wallpaperPath = settingsManager.getWallpaperPath();
+        if (wallpaperPath != null) {
+            try {
+                Uri uri = Uri.parse(wallpaperPath);
+                InputStream inputStream = getContentResolver().openInputStream(uri);
+                Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+                if (bitmap != null) {
+                    rootLayout.setBackground(new BitmapDrawable(getResources(), bitmap));
+                    updateStatusBarIconColor(bitmap);
+                }
+                if (inputStream != null) {
+                    inputStream.close();
+                }
+            } catch (Exception e) {
+                rootLayout.setBackgroundColor(Color.WHITE);
+                setLightStatusBar(true);
+            }
+        } else {
+            rootLayout.setBackgroundColor(Color.WHITE);
+            setLightStatusBar(true);
+        }
+    }
+
+    private void updateStatusBarIconColor(Bitmap bitmap) {
+        // 获取状态栏高度
+        int statusBarHeight = 0;
+        int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        if (resourceId > 0) {
+            statusBarHeight = getResources().getDimensionPixelSize(resourceId);
+        }
+        if (statusBarHeight == 0) {
+            statusBarHeight = (int) (24 * getResources().getDisplayMetrics().density);
+        }
+
+        int sampleHeight = Math.min(statusBarHeight, bitmap.getHeight());
+        int width = bitmap.getWidth();
+        int pixelCount = 0;
+        long totalBrightness = 0;
+
+        int stepX = Math.max(1, width / 50);
+        int stepY = Math.max(1, sampleHeight / 10);
+
+        for (int x = 0; x < width; x += stepX) {
+            for (int y = 0; y < sampleHeight; y += stepY) {
+                int pixel = bitmap.getPixel(x, y);
+                int r = Color.red(pixel);
+                int g = Color.green(pixel);
+                int b = Color.blue(pixel);
+                totalBrightness += (int) (0.299 * r + 0.587 * g + 0.114 * b);
+                pixelCount++;
+            }
+        }
+
+        if (pixelCount > 0) {
+            double avgBrightness = totalBrightness / (double) pixelCount;
+            // 亮度 > 128 是浅色背景，用深色图标 (light = true)
+            // 亮度 <= 128 是深色背景，用浅色图标 (light = false)
+            boolean isLightBackground = avgBrightness > 128;
+            Log.d("MainActivity", "avgBrightness: " + avgBrightness + ", isLightBackground: " + isLightBackground);
+            setLightStatusBar(isLightBackground);
+        }
+    }
+
+    private void setLightStatusBar(boolean light) {
+        View decorView = getWindow().getDecorView();
+        int flags = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+        if (light) {
+            flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+        }
+        decorView.setSystemUiVisibility(flags);
+    }
+
+    @Override
+    public void onBackPressed() {
+        // 作为桌面启动器，禁用返回键
     }
 }
