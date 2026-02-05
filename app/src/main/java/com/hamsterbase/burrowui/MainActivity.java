@@ -7,7 +7,11 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
+import android.graphics.Paint;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
@@ -292,8 +296,12 @@ public class MainActivity extends Activity {
                 InputStream inputStream = getContentResolver().openInputStream(uri);
                 Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
                 if (bitmap != null) {
-                    rootLayout.setBackground(new BitmapDrawable(getResources(), bitmap));
-                    updateStatusBarIconColor(bitmap);
+                    Bitmap grayscaleBitmap = convertToGrayscale(bitmap);
+                    rootLayout.setBackground(new BitmapDrawable(getResources(), grayscaleBitmap));
+                    updateStatusBarIconColor(grayscaleBitmap);
+                    if (grayscaleBitmap != bitmap) {
+                        bitmap.recycle();
+                    }
                 }
                 if (inputStream != null) {
                     inputStream.close();
@@ -306,6 +314,33 @@ public class MainActivity extends Activity {
             rootLayout.setBackgroundColor(Color.WHITE);
             setLightStatusBar(true);
         }
+    }
+
+    private Bitmap convertToGrayscale(Bitmap original) {
+        Bitmap grayscale = Bitmap.createBitmap(original.getWidth(), original.getHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(grayscale);
+
+        // 灰度矩阵
+        ColorMatrix grayscaleMatrix = new ColorMatrix();
+        grayscaleMatrix.setSaturation(0);
+
+        // 增加对比度，减少中间灰度的噪点
+        float contrast = 1.3f;
+        float translate = (1 - contrast) / 2 * 255;
+        ColorMatrix contrastMatrix = new ColorMatrix(new float[] {
+            contrast, 0, 0, 0, translate,
+            0, contrast, 0, 0, translate,
+            0, 0, contrast, 0, translate,
+            0, 0, 0, 1, 0
+        });
+
+        // 合并矩阵：先灰度，再对比度
+        grayscaleMatrix.postConcat(contrastMatrix);
+
+        Paint paint = new Paint();
+        paint.setColorFilter(new ColorMatrixColorFilter(grayscaleMatrix));
+        canvas.drawBitmap(original, 0, 0, paint);
+        return grayscale;
     }
 
     private void updateStatusBarIconColor(Bitmap bitmap) {
