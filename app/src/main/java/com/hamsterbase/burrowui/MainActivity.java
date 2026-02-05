@@ -23,7 +23,7 @@ import android.os.Looper;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.FrameLayout;
+import android.view.ViewGroup;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -45,7 +45,7 @@ public class MainActivity extends Activity {
     private TextView dateTextView;
     private TextView amPmTextView;
     private LinearLayout appLinearLayout;
-    private FrameLayout rootLayout;
+    private ViewGroup rootLayout;
     private LinearLayout clockLayout;
     private List<AppInfo> selectedApps;
     private SettingsManager settingsManager;
