@@ -39,7 +39,7 @@ android {
         minSdk = 24
         targetSdk = 34
         versionCode = 3
-        versionName = "2.0.2"
+        versionName = System.getenv("VERSION_NAME") ?: "2.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
